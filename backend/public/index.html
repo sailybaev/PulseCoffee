@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse Coffee - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <scrip                    productElement.innerHTML = `
+                        <h3 class="text-lg font-semibold">${product.name}</h3>
+                        <p class="text-gray-600">${formatPrice(product.price)}</p>
+                        <p class="text-gray-500 text-sm">${product.description || ''}</p>c="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex">
+                        <div class="flex-shrink-0 flex items-center">
+                            <h1 class="text-xl font-bold text-gray-800">Pulse Coffee</h1>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <button id="logoutBtn" class="ml-4 px-4 py-2 text-sm text-red-600 hover:text-red-800 hidden">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <!-- Login Form -->
+            <div id="loginSection" class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-2xl font-bold mb-4">Login</h2>
+                <form id="loginForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                        <input type="tel" id="phoneNumber" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="+1234567890">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Login
+                    </button>
+                </form>
+            </div>
+
+            <!-- Dashboard -->
+            <div id="dashboardSection" class="hidden">
+                <!-- Tabs -->
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8">
+                        <button class="tab-btn border-indigo-500 text-indigo-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="orders">
+                            Orders
+                        </button>
+                        <button class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="products">
+                            Products
+                        </button>
+                        <button class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-tab="branches">
+                            Branches
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="ordersTab" class="tab-content mt-6">
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold">Orders</h2>
+                            <div class="space-x-2">
+                                <button id="createOrderBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                                    Create Order
+                                </button>
+                            </div>
+                        </div>
+                        <div id="ordersList" class="space-y-4">
+                            <!-- Orders will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Products Tab -->
+                <div id="productsTab" class="tab-content hidden mt-6">
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold">Products</h2>
+                            <div class="space-x-2">
+                                <select id="productCategory" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">All Categories</option>
+                                    <option value="COFFEE">Coffee</option>
+                                    <option value="TEA">Tea</option>
+                                    <option value="PASTRY">Pastry</option>
+                                    <option value="SNACK">Snack</option>
+                                </select>
+                                <button id="addProductBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                                    Add Product
+                                </button>
+                            </div>
+                        </div>
+                        <div id="productsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Products will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Branches Tab -->
+                <div id="branchesTab" class="tab-content hidden mt-6">
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-bold">Branches</h2>
+                            <button id="addBranchBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                                Add Branch
+                            </button>
+                        </div>
+                        <div id="branchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Branches will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Order Modal -->
+    <div id="createOrderModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Create New Order</h3>
+                <form id="createOrderForm" class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Customer Name</label>
+                        <input type="text" id="customerName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Products</label>
+                        <div id="orderProducts" class="space-y-2">
+                            <!-- Product selection will be added here -->
+                        </div>
+                        <button type="button" id="addProductToOrder" class="mt-2 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
+                            + Add Product
+                        </button>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" id="cancelOrderBtn" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                            Create Order
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">Add New Product</h3>
+                <form id="addProductForm" class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" id="productName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Category</label>
+                        <select id="newProductCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="COFFEE">Coffee</option>
+                            <option value="TEA">Tea</option>
+                            <option value="PASTRY">Pastry</option>
+                            <option value="SNACK">Snack</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Price (KZT)</label>
+                        <input type="number" step="0.01" id="productPrice" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Enter price in KZT">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="productDescription" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" id="cancelProductBtn" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+                            Add Product
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Currency configuration for KZT
+        const CURRENCY = {
+            CODE: 'KZT',
+            SYMBOL: '₸',
+            DECIMAL_PLACES: 2
+        };
+
+        // Format price in KZT currency
+        function formatPrice(amount) {
+            return `${amount.toFixed(CURRENCY.DECIMAL_PLACES)} ${CURRENCY.SYMBOL}`;
+        }
+
+        // Validate price amount
+        function isValidPrice(amount) {
+            return amount >= 0 && Number.isFinite(amount);
+        }
+
+        // Global variables
+        let socket;
+        let token;
+        let currentUser;
+
+        // API endpoints
+        const API_BASE = 'http://localhost:3000/api';
+        const WS_URL = 'http://localhost:3000';
+
+        // DOM Elements
+        const loginSection = document.getElementById('loginSection');
+        const dashboardSection = document.getElementById('dashboardSection');
+        const loginForm = document.getElementById('loginForm');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const ordersList = document.getElementById('ordersList');
+        const productsList = document.getElementById('productsList');
+        const branchesList = document.getElementById('branchesList');
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Event Listeners
+        loginForm.addEventListener('submit', handleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
+        tabButtons.forEach(btn => btn.addEventListener('click', handleTabChange));
+
+        // Functions
+        async function handleLogin(e) {
+            e.preventDefault();
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await axios.post(`${API_BASE}/auth/login`, { phoneNumber, password });
+                token = response.data.access_token;
+                currentUser = response.data.user;
+                
+                // Initialize WebSocket connection
+                initializeWebSocket();
+                
+                // Show dashboard
+                loginSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                
+                // Load initial data
+                loadOrders();
+                loadProducts();
+                loadBranches();
+            } catch (error) {
+                alert('Login failed: ' + error.message);
+            }
+        }
+
+        function handleLogout() {
+            token = null;
+            currentUser = null;
+            if (socket) {
+                socket.disconnect();
+            }
+            loginSection.classList.remove('hidden');
+            dashboardSection.classList.add('hidden');
+            logoutBtn.classList.add('hidden');
+        }
+
+        function handleTabChange(e) {
+            const tabId = e.target.dataset.tab;
+            
+            // Update tab buttons
+            tabButtons.forEach(btn => {
+                if (btn.dataset.tab === tabId) {
+                    btn.classList.add('border-indigo-500', 'text-indigo-600');
+                    btn.classList.remove('border-transparent', 'text-gray-500');
+                } else {
+                    btn.classList.remove('border-indigo-500', 'text-indigo-600');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                }
+            });
+
+            // Show selected tab content
+            tabContents.forEach(content => {
+                if (content.id === `${tabId}Tab`) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            });
+        }
+
+        function initializeWebSocket() {
+            socket = io(WS_URL, {
+                auth: { token }
+            });
+
+            socket.on('connect', () => {
+                console.log('WebSocket connected');
+                if (currentUser.role === 'BARISTA') {
+                    socket.emit('joinBaristaRoom', currentUser.branchId);
+                }
+            });
+
+            socket.on('newOrder', (order) => {
+                appendOrder(order);
+            });
+
+            socket.on('orderStatusUpdate', ({ orderId, status }) => {
+                updateOrderStatus(orderId, status);
+            });
+        }
+
+        async function loadOrders() {
+            try {
+                const response = await axios.get(`${API_BASE}/orders`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                ordersList.innerHTML = '';
+                response.data.forEach(order => appendOrder(order));
+            } catch (error) {
+                console.error('Failed to load orders:', error);
+            }
+        }
+
+        function appendOrder(order) {
+            const orderElement = document.createElement('div');
+            orderElement.className = 'bg-white shadow rounded-lg p-4';
+            orderElement.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold">Order #${order.id}</h3>
+                    <span class="px-2 py-1 rounded-full text-sm ${getStatusColor(order.status)}">
+                        ${order.status}
+                    </span>
+                </div>
+                <div class="mt-2">
+                    <p class="text-gray-600">Customer: ${order.customerName}</p>
+                    <p class="text-gray-600">Items: ${order.items.length}</p>
+                    <p class="text-gray-600">Total: ${formatPrice(order.total)}</p>
+                </div>
+                ${currentUser.role === 'BARISTA' ? `
+                    <div class="mt-4 flex space-x-2">
+                        <button onclick="updateOrderStatus('${order.id}', 'PREPARING')" 
+                                class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            Start Preparing
+                        </button>
+                        <button onclick="updateOrderStatus('${order.id}', 'READY')"
+                                class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                            Mark Ready
+                        </button>
+                    </div>
+                ` : ''}
+            `;
+            ordersList.prepend(orderElement);
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'PENDING': 'bg-yellow-100 text-yellow-800',
+                'PREPARING': 'bg-blue-100 text-blue-800',
+                'READY': 'bg-green-100 text-green-800',
+                'COMPLETED': 'bg-gray-100 text-gray-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        async function updateOrderStatus(orderId, status) {
+            try {
+                await axios.patch(`${API_BASE}/orders/${orderId}/status`, 
+                    { status },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } catch (error) {
+                console.error('Failed to update order status:', error);
+            }
+        }
+
+        async function loadProducts(category = '') {
+            try {
+                const url = category ? `${API_BASE}/products?category=${category}` : `${API_BASE}/products`;
+                const response = await axios.get(url, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                productsList.innerHTML = '';
+                response.data.forEach(product => {
+                    const productElement = document.createElement('div');
+                    productElement.className = 'bg-white shadow rounded-lg p-4';
+                    productElement.innerHTML = `
+                        <h3 class="text-lg font-semibold">${product.name}</h3>
+                        <p class="text-gray-600">${formatPrice(product.price)}</p>
+                        <p class="text-gray-600">${product.description}</p>
+                        <p class="text-gray-600">Category: ${product.category}</p>
+                        ${currentUser.role === 'ADMIN' ? `
+                            <div class="mt-4 flex space-x-2">
+                                <button onclick="editProduct('${product.id}')" 
+                                        class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                    Edit
+                                </button>
+                                <button onclick="addCustomization('${product.id}')"
+                                        class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
+                                    Add Customization
+                                </button>
+                            </div>
+                        ` : ''}
+                    `;
+                    productsList.appendChild(productElement);
+                });
+                return response.data; // Return the products data for use in other functions
+            } catch (error) {
+                console.error('Failed to load products:', error);
+                return []; // Return empty array on error
+            }
+        }
+
+        async function loadBranches() {
+            try {
+                const response = await axios.get(`${API_BASE}/branches`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                branchesList.innerHTML = '';
+                response.data.forEach(branch => {
+                    const branchElement = document.createElement('div');
+                    branchElement.className = 'bg-white shadow rounded-lg p-4';
+                    branchElement.innerHTML = `
+                        <h3 class="text-lg font-semibold">${branch.name}</h3>
+                        <p class="text-gray-600">${branch.address}</p>
+                        <p class="text-gray-600">Status: ${branch.isActive ? 'Active' : 'Inactive'}</p>
+                    `;
+                    branchesList.appendChild(branchElement);
+                });
+            } catch (error) {
+                console.error('Failed to load branches:', error);
+            }
+        }
+
+        // Additional Functions
+        async function createOrder(orderData) {
+            try {
+                const response = await axios.post(`${API_BASE}/orders`, orderData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                appendOrder(response.data);
+                return response.data;
+            } catch (error) {
+                console.error('Failed to create order:', error);
+                throw error;
+            }
+        }
+
+        async function addProduct(productData) {
+            try {
+                const response = await axios.post(`${API_BASE}/products`, productData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                loadProducts();
+                return response.data;
+            } catch (error) {
+                console.error('Failed to add product:', error);
+                throw error;
+            }
+        }
+
+        async function addCustomization(productId, customizationData) {
+            try {
+                const response = await axios.post(`${API_BASE}/products/${productId}/customizations`, customizationData, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                return response.data;
+            } catch (error) {
+                console.error('Failed to add customization:', error);
+                throw error;
+            }
+        }
+
+        // Event Listeners for new functionality
+        document.getElementById('productCategory').addEventListener('change', (e) => {
+            loadProducts(e.target.value);
+        });
+
+        document.getElementById('addProductBtn').addEventListener('click', () => {
+            document.getElementById('addProductModal').classList.remove('hidden');
+        });
+
+        document.getElementById('cancelProductBtn').addEventListener('click', () => {
+            document.getElementById('addProductModal').classList.add('hidden');
+        });
+
+        document.getElementById('createOrderBtn').addEventListener('click', () => {
+            document.getElementById('createOrderModal').classList.remove('hidden');
+        });
+
+        document.getElementById('cancelOrderBtn').addEventListener('click', () => {
+            document.getElementById('createOrderModal').classList.add('hidden');
+        });
+
+        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const productData = {
+                name: document.getElementById('productName').value,
+                category: document.getElementById('newProductCategory').value,
+                price: parseFloat(document.getElementById('productPrice').value),
+                description: document.getElementById('productDescription').value
+            };
+            try {
+                await addProduct(productData);
+                document.getElementById('addProductModal').classList.add('hidden');
+                e.target.reset();
+            } catch (error) {
+                alert('Failed to add product: ' + error.message);
+            }
+        });
+
+        document.getElementById('createOrderForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const orderData = {
+                customerName: document.getElementById('customerName').value,
+                items: Array.from(document.querySelectorAll('.order-product')).map(item => ({
+                    productId: item.dataset.productId,
+                    quantity: parseInt(item.querySelector('.product-quantity').value),
+                    customizations: JSON.parse(item.querySelector('.product-customizations').value || '[]')
+                }))
+            };
+            try {
+                await createOrder(orderData);
+                document.getElementById('createOrderModal').classList.add('hidden');
+                e.target.reset();
+            } catch (error) {
+                alert('Failed to create order: ' + error.message);
+            }
+        });
+
+        document.getElementById('addProductToOrder').addEventListener('click', async () => {
+            const products = await loadProducts();
+            const productSelect = document.createElement('div');
+            productSelect.className = 'order-product';
+            productSelect.innerHTML = `
+                <select class="product-select mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    ${products.map(p => `<option value="${p.id}">${p.name} - ${formatPrice(p.price)}</option>`).join('')}
+                </select>
+                <input type="number" min="1" value="1" class="product-quantity mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                <input type="hidden" class="product-customizations" value="[]">
+            `;
+            document.getElementById('orderProducts').appendChild(productSelect);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse Coffee - Complete Test Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        .socket-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .connected { background-color: #10b981; }
+        .disconnected { background-color: #ef4444; }
+        
+        .product-image {
+            transition: transform 0.2s ease-in-out;
+        }
+        .product-image:hover {
+            transform: scale(1.05);
+        }
+        
+        #imageModal {
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Notifications Container -->
+    <div id="notifications"></div>
+    
+    <!-- Image Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="relative max-w-4xl max-h-full p-4">
+            <button onclick="closeImageModal()" class="absolute -top-2 -right-2 bg-white text-black rounded-full w-8 h-8 flex items-center justify-center hover:bg-gray-200">×</button>
+            <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded">
+            <p id="modalImageTitle" class="text-white text-center mt-2 font-medium"></p>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div id="editProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-medium mb-4">Edit Product</h3>
+            <form onsubmit="updateProduct(event)" class="space-y-4">
+                <input type="hidden" id="editProductId">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Name</label>
+                    <input type="text" id="editProductName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea id="editProductDescription" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Price (KZT)</label>
+                    <input type="number" step="0.01" id="editProductPrice" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required placeholder="Enter price in KZT">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Category</label>
+                    <select id="editProductCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                        <option value="COFFEE">Coffee</option>
+                        <option value="TEA">Tea</option>
+                        <option value="DESSERT">Dessert</option>
+                        <option value="SNACK">Snack</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Image URL</label>
+                    <input type="text" id="editProductImageUrl" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                </div>
+                <div class="flex space-x-3">
+                    <button type="submit" class="flex-1 py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700">Update Product</button>
+                    <button type="button" onclick="closeEditProductModal()" class="flex-1 py-2 px-4 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-bold text-gray-800">Pulse Coffee - Complete Test</h1>
+                        <div class="ml-6 flex items-center">
+                            <span class="socket-status disconnected" id="socketStatus"></span>
+                            <span class="text-sm text-gray-600" id="socketStatusText">Disconnected</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="userInfo" class="text-sm text-gray-600 hidden"></span>
+                        <button id="logoutBtn" class="px-4 py-2 text-sm text-red-600 hover:text-red-800 hidden">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <!-- Login/Register Section -->
+            <div id="authSection" class="bg-white shadow rounded-lg p-6 mb-6">
+                <div class="flex space-x-4 mb-6">
+                    <button id="loginTab" class="px-4 py-2 bg-blue-500 text-white rounded">Login</button>
+                    <button id="registerTab" class="px-4 py-2 bg-gray-200 text-gray-700 rounded">Register</button>
+                    <button id="adminLoginTab" class="px-4 py-2 bg-purple-500 text-white rounded">Admin Login</button>
+                </div>
+                
+                <!-- Login Form -->
+                <div id="loginForm" class="tab-content active">
+                    <h2 class="text-2xl font-bold mb-4">Login</h2>
+                    <form class="space-y-4" onsubmit="login(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <input type="tel" id="loginPhone" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="+1234567890" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Password</label>
+                            <input type="password" id="loginPassword" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                        </div>
+                        <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Login
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Register Form -->
+                <div id="registerForm" class="tab-content">
+                    <h2 class="text-2xl font-bold mb-4">Register</h2>
+                    <form class="space-y-4" onsubmit="register(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Name</label>
+                            <input type="text" id="registerName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                            <input type="tel" id="registerPhone" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="+1234567890" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Password</label>
+                            <input type="password" id="registerPassword" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" minlength="6" required>
+                        </div>
+                        <button type="submit" class="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700">
+                            Register
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Admin Login Form -->
+                <div id="adminLoginForm" class="tab-content">
+                    <h2 class="text-2xl font-bold mb-4">Admin Login</h2>
+                    <div class="bg-purple-50 border border-purple-200 rounded p-4 mb-4">
+                        <p class="text-sm text-purple-700">Admin login provides access to advanced features like order management, user creation, and product management with image uploads.</p>
+                    </div>
+                    <form class="space-y-4" onsubmit="adminLogin(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Admin Phone Number</label>
+                            <input type="tel" id="adminPhone" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="+1234567890" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Admin Password</label>
+                            <input type="password" id="adminPassword" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                        </div>
+                        <button type="submit" class="w-full py-2 px-4 bg-purple-600 text-white rounded hover:bg-purple-700">
+                            Login as Admin
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Main Dashboard -->
+            <div id="dashboardSection" class="hidden">
+                <!-- Tab Navigation -->
+                <div class="bg-white shadow rounded-lg mb-6">
+                    <div class="border-b border-gray-200">
+                        <nav class="-mb-px flex space-x-8 px-6">
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium" data-tab="products">Products</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="product-branches">Product-Branches</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="orders">Orders</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="branches">Branches</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="users">Users</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="websocket">WebSocket</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="files">Files</button>
+                            <button class="dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="images">Images</button>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Products Tab -->
+                <div id="products" class="dashboard-content">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Create Product</h3>
+                        <form class="grid grid-cols-2 gap-4" onsubmit="createProduct(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <input type="text" id="productName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Price (KZT)</label>
+                            <input type="number" step="0.01" id="productPrice" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required placeholder="Enter price in KZT">
+                        </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Category</label>
+                                <select id="productCategory" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                    <option value="COFFEE">Coffee</option>
+                                    <option value="TEA">Tea</option>
+                                    <option value="DESSERT">Dessert</option>
+                                    <option value="SNACK">Snack</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Description</label>
+                                <input type="text" id="productDescription" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Image URL (optional)</label>
+                                <input type="text" id="productImageUrl" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                            <div class="col-span-2">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create Product</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Create Product with Image Upload -->
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Create Product with Image Upload</h3>
+                        <form class="grid grid-cols-2 gap-4" onsubmit="createProductWithImage(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <input type="text" id="productNameWithImage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Price (KZT)</label>
+                                <input type="number" step="0.01" id="productPriceWithImage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required placeholder="Enter price in KZT">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Category</label>
+                                <select id="productCategoryWithImage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                    <option value="COFFEE">Coffee</option>
+                                    <option value="TEA">Tea</option>
+                                    <option value="DESSERT">Dessert</option>
+                                    <option value="SNACK">Snack</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Description</label>
+                                <input type="text" id="productDescriptionWithImage" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm font-medium text-gray-700">Product Image</label>
+                                <input type="file" id="productImage" accept="image/*" class="mt-1 block w-full border-2 border-dashed border-gray-300 rounded-md p-4">
+                                <p class="text-sm text-gray-500 mt-1">Choose an image file (JPG, PNG, GIF, WebP - max 5MB)</p>
+                            </div>
+                            <div class="col-span-2">
+                                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Create Product with Image</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium">Products</h3>
+                            <button onclick="loadProducts()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Refresh</button>
+                        </div>
+                        <div id="productsList" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Product-Branches Tab -->
+                <div id="product-branches" class="dashboard-content hidden">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Assign Products to Branches</h3>
+                        <form class="space-y-4" onsubmit="assignProductToBranch(event)">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Product</label>
+                                    <select id="assignProduct" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                        <option value="">Select a product</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Branch</label>
+                                    <select id="assignBranch" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                        <option value="">Select a branch</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Available Quantity</label>
+                                <input type="number" id="assignQuantity" min="0" value="10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Assign Product</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Bulk Product Assignment</h3>
+                        <form class="space-y-4" onsubmit="bulkAssignProducts(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Branch</label>
+                                <select id="bulkAssignBranch" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                    <option value="">Select a branch</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Default Quantity for All Products</label>
+                                <input type="number" id="bulkQuantity" min="0" value="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Assign All Products</button>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium">Product-Branch Assignments</h3>
+                            <button onclick="loadProductBranchAssignments()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Refresh</button>
+                        </div>
+                        <div id="productBranchList" class="space-y-4">
+                            <!-- Product-branch assignments will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="orders" class="dashboard-content hidden">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Create Order</h3>
+                        <form class="space-y-4" onsubmit="createOrder(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Branch</label>
+                                <select id="orderBranch" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                    <option value="">Select a branch</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Products</label>
+                                <div id="orderProducts" class="space-y-2 mt-2"></div>
+                                <button type="button" onclick="addOrderItem()" class="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Add Item</button>
+                            </div>
+                            <div>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create Order</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Admin Order Management -->
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Order Management (Admin)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <h4 class="font-medium mb-2">Get Specific Order</h4>
+                                <input type="text" id="getOrderId" placeholder="Order ID" class="mb-2 block w-full rounded-md border-gray-300 shadow-sm">
+                                <button onclick="getSpecificOrder()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 w-full">Get Order</button>
+                            </div>
+                            <div>
+                                <h4 class="font-medium mb-2">Update Order Status</h4>
+                                <input type="text" id="updateOrderId" placeholder="Order ID" class="mb-2 block w-full rounded-md border-gray-300 shadow-sm">
+                                <select id="orderStatus" class="mb-2 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="PENDING">Pending</option>
+                                    <option value="CONFIRMED">Confirmed</option>
+                                    <option value="PREPARING">Preparing</option>
+                                    <option value="READY">Ready</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="CANCELLED">Cancelled</option>
+                                </select>
+                                <button onclick="updateOrderStatus()" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 w-full">Update Status</button>
+                            </div>
+                            <div>
+                                <h4 class="font-medium mb-2">Delete Order</h4>
+                                <input type="text" id="deleteOrderId" placeholder="Order ID" class="mb-2 block w-full rounded-md border-gray-300 shadow-sm">
+                                <button onclick="deleteOrder()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 w-full">Delete Order</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium">Orders</h3>
+                            <div class="space-x-2">
+                                <button onclick="getAllOrders()" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Get All Orders</button>
+                                <button onclick="loadOrders()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Refresh</button>
+                            </div>
+                        </div>
+                        <div id="ordersList" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Branches Tab -->
+                <div id="branches" class="dashboard-content hidden">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Create Branch</h3>
+                        <form class="grid grid-cols-2 gap-4" onsubmit="createBranch(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <input type="text" id="branchName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Address</label>
+                                <input type="text" id="branchAddress" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div class="col-span-2">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create Branch</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium">Branches</h3>
+                            <button onclick="loadBranches()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Refresh</button>
+                        </div>
+                        <div id="branchesList" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="users" class="dashboard-content hidden">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">Create User (Admin Only)</h3>
+                        <form class="grid grid-cols-2 gap-4" onsubmit="createUser(event)">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Name</label>
+                                <input type="text" id="userName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Email</label>
+                                <input type="email" id="userEmail" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Phone Number</label>
+                                <input type="tel" id="userPhone" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Role</label>
+                                <select id="userRole" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                                    <option value="CLIENT">Client</option>
+                                    <option value="BARISTA">Barista</option>
+                                    <option value="ADMIN">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Password</label>
+                                <input type="password" id="userPassword" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" minlength="6" required>
+                            </div>
+                            <div class="col-span-2">
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Create User</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- WebSocket Tab -->
+                <div id="websocket" class="dashboard-content hidden">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-white shadow rounded-lg p-6">
+                            <h3 class="text-lg font-medium mb-4">WebSocket Actions</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Branch ID for Barista Room</label>
+                                    <input type="text" id="baristaRoomId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder="Enter branch ID">
+                                </div>
+                                <div class="space-x-2">
+                                    <button onclick="joinBaristaRoom()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Join Barista Room</button>
+                                    <button onclick="leaveBaristaRoom()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Leave Barista Room</button>
+                                </div>
+                                <button onclick="testWebSocket()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Test Connection</button>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white shadow rounded-lg p-6">
+                            <h3 class="text-lg font-medium mb-4">WebSocket Events</h3>
+                            <div id="websocketEvents" class="space-y-2 max-h-96 overflow-y-auto bg-gray-50 p-4 rounded">
+                                <!-- Events will be displayed here -->
+                            </div>
+                            <button onclick="clearWebSocketEvents()" class="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Clear Events</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Files Tab -->
+                <div id="files" class="dashboard-content hidden">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-medium mb-4">File Upload</h3>
+                        <form onsubmit="uploadFile(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Select File</label>
+                                <input type="file" id="fileInput" class="mt-1 block w-full" required>
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Upload File</button>
+                        </form>
+                        <div id="uploadResult" class="mt-4"></div>
+                    </div>
+                    
+                    <!-- Test Image Upload -->
+                    <div class="bg-white shadow rounded-lg p-6">
+                        <h3 class="text-lg font-medium mb-4">Test Image Upload</h3>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                            <input type="file" id="testImage" accept="image/*" class="mb-4">
+                            <p class="text-sm text-gray-500">Choose an image file to test upload functionality</p>
+                            <button onclick="uploadTestImage()" class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Upload Test Image</button>
+                        </div>
+                        <div id="testUploadResult" class="mt-4"></div>
+                    </div>
+                </div>
+
+                <!-- Images Tab -->
+                <div id="images" class="dashboard-content hidden">
+                    <div class="bg-white shadow rounded-lg p-6 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium">Uploaded Images</h3>
+                            <button onclick="loadUploadedImages()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">Refresh</button>
+                        </div>
+                        <div id="uploadedImagesList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <!-- Uploaded images will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let accessToken = null;
+        let socket = null;
+        let availableProducts = [];
+        let availableBranches = [];
+
+        // Initialize axios defaults
+        axios.defaults.baseURL = window.location.origin + '/api';
+        axios.defaults.withCredentials = true;
+
+        // Axios interceptor to add auth header
+        axios.interceptors.request.use((config) => {
+            if (accessToken) {
+                config.headers.Authorization = `Bearer ${accessToken}`;
+            }
+            return config;
+        });
+
+        // Axios interceptor to handle token refresh
+        axios.interceptors.response.use(
+            (response) => response,
+            async (error) => {
+                if (error.response?.status === 401 && accessToken) {
+                    try {
+                        const refreshResponse = await axios.post('/auth/refresh');
+                        accessToken = refreshResponse.data.accessToken;
+                        error.config.headers.Authorization = `Bearer ${accessToken}`;
+                        return axios.request(error.config);
+                    } catch (refreshError) {
+                        logout();
+                        return Promise.reject(refreshError);
+                    }
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
+            checkAuthStatus();
+            initializeProductCategories();
+        });
+
+        function initializeTabs() {
+            // Auth tabs
+            document.getElementById('loginTab').addEventListener('click', () => switchAuthTab('login'));
+            document.getElementById('registerTab').addEventListener('click', () => switchAuthTab('register'));
+            document.getElementById('adminLoginTab').addEventListener('click', () => switchAuthTab('adminLogin'));
+            
+            // Dashboard tabs
+            document.querySelectorAll('.dashboard-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => switchDashboardTab(e.target.dataset.tab));
+            });
+        }
+
+        function switchAuthTab(tab) {
+            document.querySelectorAll('#authSection .tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tab + 'Form').classList.add('active');
+            
+            // Update button styles
+            document.getElementById('loginTab').className = tab === 'login' ? 'px-4 py-2 bg-blue-500 text-white rounded' : 'px-4 py-2 bg-gray-200 text-gray-700 rounded';
+            document.getElementById('registerTab').className = tab === 'register' ? 'px-4 py-2 bg-blue-500 text-white rounded' : 'px-4 py-2 bg-gray-200 text-gray-700 rounded';
+            document.getElementById('adminLoginTab').className = tab === 'adminLogin' ? 'px-4 py-2 bg-purple-500 text-white rounded' : 'px-4 py-2 bg-gray-200 text-gray-700 rounded';
+        }
+
+        function switchDashboardTab(tab) {
+            document.querySelectorAll('.dashboard-tab').forEach(tabEl => {
+                tabEl.className = 'dashboard-tab py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700';
+            });
+            document.querySelectorAll('.dashboard-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            document.querySelector(`[data-tab="${tab}"]`).className = 'dashboard-tab py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium';
+            document.getElementById(tab).classList.remove('hidden');
+            
+            // Load data for specific tabs
+            if (tab === 'products') loadProducts();
+            if (tab === 'orders') { 
+                Promise.all([loadOrders(), loadBranches(), loadProducts()]).then(() => {
+                    initializeOrderForm();
+                });
+            }
+            if (tab === 'branches') loadBranches();
+            if (tab === 'product-branches') loadProductBranchAssignments();
+            if (tab === 'images') loadUploadedImages();
+        }
+
+        async function checkAuthStatus() {
+            try {
+                const response = await axios.post('/auth/refresh');
+                accessToken = response.data.accessToken;
+                showDashboard();
+                connectWebSocket();
+            } catch (error) {
+                showAuth();
+            }
+        }
+
+        async function login(event) {
+            event.preventDefault();
+            try {
+                const response = await axios.post('/auth/login', {
+                    phoneNumber: document.getElementById('loginPhone').value,
+                    password: document.getElementById('loginPassword').value
+                });
+                
+                accessToken = response.data.accessToken;
+                currentUser = response.data.user;
+                showNotification('Login successful!', 'success');
+                showDashboard();
+                connectWebSocket();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Login failed', 'error');
+            }
+        }
+
+        async function register(event) {
+            event.preventDefault();
+            try {
+                const response = await axios.post('/auth/register', {
+                    name: document.getElementById('registerName').value,
+                    phoneNumber: document.getElementById('registerPhone').value,
+                    password: document.getElementById('registerPassword').value
+                });
+                
+                accessToken = response.data.accessToken;
+                currentUser = response.data.user;
+                showNotification('Registration successful!', 'success');
+                showDashboard();
+                connectWebSocket();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Registration failed', 'error');
+            }
+        }
+
+        async function adminLogin(event) {
+            event.preventDefault();
+            try {
+                const response = await axios.post('/auth/login', {
+                    phoneNumber: document.getElementById('adminPhone').value,
+                    password: document.getElementById('adminPassword').value
+                });
+                
+                accessToken = response.data.accessToken;
+                currentUser = response.data.user;
+                
+                if (currentUser.role === 'ADMIN' || currentUser.role === 'BARISTA') {
+                    showNotification(`Admin login successful! Role: ${currentUser.role}`, 'success');
+                    showDashboard();
+                    connectWebSocket();
+                } else {
+                    showNotification('Admin access required. Please login with an admin account.', 'error');
+                    logout();
+                }
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Admin login failed', 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await axios.post('/auth/logout');
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                accessToken = null;
+                currentUser = null;
+                if (socket) {
+                    socket.disconnect();
+                    socket = null;
+                }
+                showAuth();
+                showNotification('Logged out successfully', 'info');
+            }
+        }
+
+        function showAuth() {
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('logoutBtn').classList.add('hidden');
+            document.getElementById('userInfo').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('userInfo').classList.remove('hidden');
+            
+            if (currentUser) {
+                document.getElementById('userInfo').textContent = `${currentUser.name} (${currentUser.role})`;
+            }
+        }
+
+        // WebSocket functions
+        function connectWebSocket() {
+            if (!accessToken) return;
+            
+            socket = io({
+                auth: {
+                    token: accessToken
+                }
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('socketStatus').className = 'socket-status connected';
+                document.getElementById('socketStatusText').textContent = 'Connected';
+                addWebSocketEvent('Connected to server', 'success');
+                
+                // If user is admin or barista, automatically join all barista rooms for testing
+                if (currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'BARISTA')) {
+                    // Auto-join available branches for testing
+                    loadBranchesForWebSocket();
+                }
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('socketStatus').className = 'socket-status disconnected';
+                document.getElementById('socketStatusText').textContent = 'Disconnected';
+                addWebSocketEvent('Disconnected from server', 'error');
+            });
+
+            socket.on('newOrder', (order) => {
+                addWebSocketEvent(`New order received: ${JSON.stringify(order)}`, 'info');
+                showNotification(`New order #${order.id} for ${order.total} ₸!`, 'info');
+                // Refresh orders list if on orders tab
+                if (!document.getElementById('orders').classList.contains('hidden')) {
+                    loadOrders();
+                }
+            });
+
+            socket.on('orderStatusUpdate', (data) => {
+                addWebSocketEvent(`Order status update: ${JSON.stringify(data)}`, 'info');
+                showNotification(`Order ${data.orderId} status: ${data.status}`, 'info');
+                // Refresh orders list if on orders tab
+                if (!document.getElementById('orders').classList.contains('hidden')) {
+                    loadOrders();
+                }
+            });
+
+            socket.on('joinedBaristaRoom', (data) => {
+                addWebSocketEvent(`Successfully joined barista room for branch: ${data.branchId}`, 'success');
+            });
+        }
+
+        // Load branches and auto-join barista rooms for admins/baristas
+        async function loadBranchesForWebSocket() {
+            try {
+                const response = await axios.get('/branches');
+                const branches = response.data;
+                // Join first branch for testing (in real app, this would be user-specific)
+                if (branches.length > 0) {
+                    const firstBranchId = branches[0].id;
+                    document.getElementById('baristaRoomId').value = firstBranchId;
+                    joinBaristaRoom();
+                }
+            } catch (error) {
+                console.error('Failed to load branches for WebSocket:', error);
+            }
+        }
+
+        function joinBaristaRoom() {
+            const branchId = document.getElementById('baristaRoomId').value;
+            if (socket && branchId) {
+                socket.emit('joinBaristaRoom', branchId);
+                addWebSocketEvent(`Attempting to join barista room for branch: ${branchId}`, 'info');
+            } else {
+                addWebSocketEvent('Cannot join barista room: no branch ID provided or socket not connected', 'error');
+            }
+        }
+
+        function leaveBaristaRoom() {
+            const branchId = document.getElementById('baristaRoomId').value;
+            if (socket && branchId) {
+                socket.emit('leaveBaristaRoom', branchId);
+                addWebSocketEvent(`Left barista room for branch: ${branchId}`, 'info');
+            } else {
+                addWebSocketEvent('Cannot leave barista room: no branch ID provided or socket not connected', 'error');
+            }
+        }
+
+        function testWebSocket() {
+            if (socket) {
+                addWebSocketEvent('WebSocket connection test', 'info');
+                showNotification('WebSocket is connected and working!', 'success');
+            } else {
+                showNotification('WebSocket is not connected', 'error');
+            }
+        }
+
+        function addWebSocketEvent(message, type) {
+            const eventsContainer = document.getElementById('websocketEvents');
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `p-2 rounded text-sm ${
+                type === 'success' ? 'bg-green-100 text-green-800' :
+                type === 'error' ? 'bg-red-100 text-red-800' :
+                'bg-blue-100 text-blue-800'
+            }`;
+            eventDiv.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            eventsContainer.appendChild(eventDiv);
+            eventsContainer.scrollTop = eventsContainer.scrollHeight;
+        }
+
+        function clearWebSocketEvents() {
+            document.getElementById('websocketEvents').innerHTML = '';
+        }
+
+        // Product functions
+        async function createProduct(event) {
+            event.preventDefault();
+            try {
+                const response = await axios.post('/products', {
+                    name: document.getElementById('productName').value,
+                    basePrice: parseFloat(document.getElementById('productPrice').value),
+                    category: document.getElementById('productCategory').value,
+                    description: document.getElementById('productDescription').value,
+                    imageUrl: document.getElementById('productImageUrl').value || undefined
+                });
+                
+                showNotification('Product created successfully!', 'success');
+                event.target.reset();
+                loadProducts();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to create product', 'error');
+            }
+        }
+
+        async function createProductWithImage(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+            
+            // Validate required fields
+            const name = document.getElementById('productNameWithImage').value.trim();
+            const price = document.getElementById('productPriceWithImage').value;
+            const category = document.getElementById('productCategoryWithImage').value;
+            
+            if (!name) {
+                showNotification('Product name is required', 'error');
+                return;
+            }
+            
+            if (!price || isNaN(parseFloat(price))) {
+                showNotification('Valid price is required', 'error');
+                return;
+            }
+            
+            if (!category) {
+                showNotification('Category is required', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('description', document.getElementById('productDescriptionWithImage').value.trim());
+            formData.append('basePrice', price);
+            formData.append('category', category);
+            
+            const imageFile = document.getElementById('productImage').files[0];
+            if (imageFile) {
+                // Validate image file
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                if (!allowedTypes.includes(imageFile.type.toLowerCase())) {
+                    showNotification('Please select a valid image file (JPG, PNG, GIF, WebP)', 'error');
+                    return;
+                }
+                
+                if (imageFile.size > 5 * 1024 * 1024) { // 5MB
+                    showNotification('Image file size must be less than 5MB', 'error');
+                    return;
+                }
+                
+                formData.append('image', imageFile);
+            }
+            
+            try {
+                console.log('Sending product creation request with image...');
+                // Don't set Content-Type header manually for FormData - let axios handle it
+                const response = await axios.post('/products/with-image', formData);
+                
+                console.log('Product created successfully:', response.data);
+                showNotification('Product with image created successfully!', 'success');
+                
+                // Clear form
+                document.getElementById('productNameWithImage').value = '';
+                document.getElementById('productDescriptionWithImage').value = '';
+                document.getElementById('productPriceWithImage').value = '';
+                document.getElementById('productImage').value = '';
+                
+                // Reset category to default
+                document.getElementById('productCategoryWithImage').value = 'COFFEE';
+                
+                loadProducts();
+            } catch (error) {
+                console.error('Error creating product with image:', error);
+                const errorMessage = error.response?.data?.message || 
+                                   error.response?.data?.error || 
+                                   'Failed to create product with image';
+                showNotification(errorMessage, 'error');
+            }
+        }
+
+        async function loadProducts() {
+            try {
+                const response = await axios.get('/products');
+                window.availableProducts = response.data;
+                availableProducts = response.data;
+                displayProducts(response.data);
+                updateOrderProductOptions();
+                updateProductBranchSelects();
+                return response.data;
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load products', 'error');
+                return [];
+            }
+        }
+
+        function displayProducts(products) {
+            const container = document.getElementById('productsList');
+            container.innerHTML = products.map(product => `
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex space-x-4 flex-1">
+                            ${product.imageUrl ? `
+                                <div class="flex-shrink-0">
+                                    <img src="${product.imageUrl}" alt="${product.name}" class="w-24 h-24 object-cover rounded-lg cursor-pointer product-image" onclick="showImageModal('${product.imageUrl}', '${product.name}')">
+                                </div>
+                            ` : `
+                                <div class="flex-shrink-0 w-24 h-24 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <span class="text-gray-400 text-sm">No Image</span>
+                                </div>
+                            `}
+                            <div class="flex-1">
+                                <h4 class="font-medium text-lg">${product.name}</h4>
+                                <p class="text-gray-600 mt-1">${product.description || 'No description'}</p>
+                                <p class="text-green-600 font-medium text-lg mt-2">${product.basePrice} KZT </p>
+                                <span class="inline-block px-2 py-1 text-xs bg-gray-100 rounded mt-2">${product.category}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-500 mb-3">
+                                <p>ID: ${product.id}</p>
+                                <p>Created: ${new Date(product.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div class="space-x-2">
+                                <button onclick="editProduct('${product.id}')" class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">Edit</button>
+                                <button onclick="deleteProduct('${product.id}', '${product.name}')" class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">Delete</button>
+                                <button onclick="copyToClipboard('${product.id}')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">Copy ID</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Product edit and delete functions
+        async function editProduct(productId) {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            try {
+                const response = await axios.get(`/products/${productId}`);
+                const product = response.data;
+                
+                document.getElementById('editProductId').value = product.id;
+                document.getElementById('editProductName').value = product.name;
+                document.getElementById('editProductDescription').value = product.description || '';
+                document.getElementById('editProductPrice').value = product.basePrice;
+                document.getElementById('editProductCategory').value = product.category;
+                document.getElementById('editProductImageUrl').value = product.imageUrl || '';
+                
+                document.getElementById('editProductModal').classList.remove('hidden');
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load product details', 'error');
+            }
+        }
+
+        async function updateProduct(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const productId = document.getElementById('editProductId').value;
+            const updateData = {
+                name: document.getElementById('editProductName').value,
+                description: document.getElementById('editProductDescription').value,
+                basePrice: parseFloat(document.getElementById('editProductPrice').value),
+                category: document.getElementById('editProductCategory').value,
+                imageUrl: document.getElementById('editProductImageUrl').value || undefined
+            };
+
+            try {
+                await axios.patch(`/products/${productId}`, updateData);
+                showNotification('Product updated successfully!', 'success');
+                closeEditProductModal();
+                loadProducts();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to update product', 'error');
+            }
+        }
+
+        async function deleteProduct(productId, productName) {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete "${productName}"? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/products/${productId}`);
+                showNotification('Product deleted successfully!', 'success');
+                loadProducts();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to delete product', 'error');
+            }
+        }
+
+        function closeEditProductModal() {
+            document.getElementById('editProductModal').classList.add('hidden');
+        }
+
+        // Image modal functions
+        function showImageModal(imageUrl, title) {
+            document.getElementById('modalImage').src = imageUrl;
+            document.getElementById('modalImageTitle').textContent = title;
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        // Product-Branch assignment functions
+        async function assignProductToBranch(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const productId = document.getElementById('assignProduct').value;
+            const branchId = document.getElementById('assignBranch').value;
+            const quantity = parseInt(document.getElementById('assignQuantity').value);
+
+            try {
+                await axios.post('/products/assign-to-branch', {
+                    productId: productId,
+                    branchId: branchId,
+                    quantity: quantity
+                });
+                showNotification('Product assigned to branch successfully!', 'success');
+                event.target.reset();
+                loadProductBranchAssignments();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to assign product to branch', 'error');
+            }
+        }
+
+        async function bulkAssignProducts(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const branchId = document.getElementById('bulkAssignBranch').value;
+            const quantity = parseInt(document.getElementById('bulkQuantity').value);
+
+            if (!confirm(`This will assign ALL products to the selected branch with quantity ${quantity}. Continue?`)) {
+                return;
+            }
+
+            try {
+                await axios.post('/products/bulk-assign-to-branch', {
+                    branchId: branchId,
+                    quantity: quantity
+                });
+                showNotification('All products assigned to branch successfully!', 'success');
+                event.target.reset();
+                loadProductBranchAssignments();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to bulk assign products', 'error');
+            }
+        }
+
+        async function loadProductBranchAssignments() {
+            if (!accessToken) {
+                return;
+            }
+
+            try {
+                const response = await axios.get('/products/branch-assignments');
+                displayProductBranchAssignments(response.data);
+                updateProductBranchSelects();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load product-branch assignments', 'error');
+            }
+        }
+
+        function displayProductBranchAssignments(assignments) {
+            const container = document.getElementById('productBranchList');
+            if (!assignments || assignments.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">No product-branch assignments found</p>';
+                return;
+            }
+
+            container.innerHTML = assignments.map(assignment => `
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex space-x-4 flex-1">
+                            ${assignment.product?.imageUrl ? `
+                                <div class="flex-shrink-0">
+                                    <img src="${assignment.product.imageUrl}" alt="${assignment.product?.name}" class="w-16 h-16 object-cover rounded">
+                                </div>
+                            ` : `
+                                <div class="flex-shrink-0 w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
+                                    <span class="text-gray-400 text-xs">No Img</span>
+                                </div>
+                            `}
+                            <div class="flex-1">
+                                <h4 class="font-medium">${assignment.product?.name || 'Unknown Product'}</h4>
+                                <p class="text-gray-600">${assignment.branch?.name || 'Unknown Branch'}</p>
+                                <p class="text-sm text-gray-500">Quantity: ${assignment.quantity || 0}</p>
+                                <p class="text-green-600 font-medium">${assignment.product?.basePrice || 0}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="space-x-2">
+                                <button onclick="updateAssignmentQuantity('${assignment.id}', '${assignment.quantity}')" class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">Update Qty</button>
+                                <button onclick="removeAssignment('${assignment.id}')" class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function updateAssignmentQuantity(assignmentId, currentQuantity) {
+            const newQuantity = prompt(`Enter new quantity (current: ${currentQuantity}):`);
+            if (newQuantity === null || newQuantity === '') return;
+            
+            const quantity = parseInt(newQuantity);
+            if (isNaN(quantity) || quantity < 0) {
+                showNotification('Please enter a valid quantity', 'error');
+                return;
+            }
+
+            try {
+                await axios.patch(`/products/branch-assignment/${assignmentId}`, { quantity });
+                showNotification('Assignment quantity updated successfully!', 'success');
+                loadProductBranchAssignments();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to update assignment', 'error');
+            }
+        }
+
+        async function removeAssignment(assignmentId) {
+            if (!confirm('Are you sure you want to remove this assignment?')) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/products/branch-assignment/${assignmentId}`);
+                showNotification('Assignment removed successfully!', 'success');
+                loadProductBranchAssignments();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to remove assignment', 'error');
+            }
+        }
+
+        function updateProductBranchSelects() {
+            // Update product selects
+            const productSelects = [
+                document.getElementById('assignProduct')
+            ];
+            
+            productSelects.forEach(select => {
+                if (select) {
+                    const currentValue = select.value;
+                    select.innerHTML = '<option value="">Select a product</option>' +
+                        availableProducts.map(p => `<option value="${p.id}">${p.name} - ${p.basePrice}</option>`).join('');
+                    select.value = currentValue;
+                }
+            });
+
+            // Update branch selects
+            const branchSelects = [
+                document.getElementById('assignBranch'),
+                document.getElementById('bulkAssignBranch')
+            ];
+            
+            branchSelects.forEach(select => {
+                if (select) {
+                    const currentValue = select.value;
+                    select.innerHTML = '<option value="">Select a branch</option>' +
+                        availableBranches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        async function loadBranches() {
+            try {
+                const response = await axios.get('/branches');
+                window.availableBranches = response.data;
+                availableBranches = response.data;
+                displayBranches(response.data);
+                updateOrderBranchOptions();
+                updateProductBranchSelects();
+                return response.data;
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load branches', 'error');
+                return [];
+            }
+        }
+
+        function displayBranches(branches) {
+            const container = document.getElementById('branchesList');
+            container.innerHTML = branches.map(branch => `
+                <div class="border rounded-lg p-4">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-lg">${branch.name}</h4>
+                            <p class="text-gray-600 mt-1">${branch.address || 'No address'}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-gray-500 mb-3">
+                                <p>ID: ${branch.id}</p>
+                                <p>Created: ${new Date(branch.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div class="space-x-2">
+                                <button onclick="editBranch('${branch.id}')" class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">Edit</button>
+                                <button onclick="deleteBranch('${branch.id}', '${branch.name}')" class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">Delete</button>
+                                <button onclick="copyToClipboard('${branch.id}')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">Copy ID</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Branch create, edit and delete functions
+        async function createBranch(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const branchData = {
+                name: document.getElementById('branchName').value,
+                address: document.getElementById('branchAddress').value
+            };
+
+            try {
+                await axios.post('/branches', branchData);
+                showNotification('Branch created successfully!', 'success');
+                
+                // Clear form
+                document.getElementById('branchName').value = '';
+                document.getElementById('branchAddress').value = '';
+                
+                // Reload branches list
+                loadBranches();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to create branch', 'error');
+            }
+        }
+
+        async function editBranch(branchId) {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            try {
+                const response = await axios.get(`/branches/${branchId}`);
+                const branch = response.data;
+                
+                document.getElementById('editBranchId').value = branch.id;
+                document.getElementById('editBranchName').value = branch.name;
+                document.getElementById('editBranchAddress').value = branch.address || '';
+                
+                document.getElementById('editBranchModal').classList.remove('hidden');
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load branch details', 'error');
+            }
+        }
+
+        async function updateBranch(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const branchId = document.getElementById('editBranchId').value;
+            const updateData = {
+                name: document.getElementById('editBranchName').value,
+                address: document.getElementById('editBranchAddress').value || undefined
+            };
+
+            try {
+                await axios.patch(`/branches/${branchId}`, updateData);
+                showNotification('Branch updated successfully!', 'success');
+                closeEditBranchModal();
+                loadBranches();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to update branch', 'error');
+            }
+        }
+
+        async function deleteBranch(branchId, branchName) {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete "${branchName}"? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/branches/${branchId}`);
+                showNotification('Branch deleted successfully!', 'success');
+                loadBranches();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to delete branch', 'error');
+            }
+        }
+
+        function closeEditBranchModal() {
+            document.getElementById('editBranchModal').classList.add('hidden');
+        }
+
+        // Load uploaded images function
+        async function loadUploadedImages() {
+            if (!accessToken) {
+                return;
+            }
+
+            try {
+                const response = await axios.get('/upload/images');
+                displayUploadedImages(response.data);
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load uploaded images', 'error');
+            }
+        }
+
+        function displayUploadedImages(images) {
+            const container = document.getElementById('uploadedImagesList');
+            if (!images || images.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8 col-span-full">No images uploaded yet</p>';
+                return;
+            }
+
+            container.innerHTML = images.map(image => `
+                <div class="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                    <div class="aspect-square bg-gray-50 relative group cursor-pointer" onclick="showImageModal('${image.url}', '${image.filename}')">
+                        <img src="${image.url}" alt="${image.filename}" class="w-full h-full object-cover product-image">
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                            <span class="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">Click to view</span>
+                        </div>
+                    </div>
+                    <div class="p-3">
+                        <p class="text-sm font-medium text-gray-900 truncate" title="${image.filename}">${image.filename}</p>
+                        <p class="text-xs text-gray-500">${formatFileSize(image.size)}</p>
+                        <p class="text-xs text-gray-500">${formatDate(image.mtime)}</p>
+                        <button onclick="copyImageUrl('${image.url}')" class="mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors">
+                            Copy URL
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function copyImageUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                showNotification('Image URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showNotification('Failed to copy URL', 'error');
+            });
+        }
+
+        // Add missing functions for file upload and product category initialization
+        async function uploadFile(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showNotification('Please select a file', 'error');
+                return;
+            }
+
+            formData.append('file', file);
+
+            try {
+                const response = await axios.post('/upload/image', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                document.getElementById('uploadResult').innerHTML = `
+                    <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                        <p class="text-green-800">File uploaded successfully!</p>
+                        <p class="text-sm text-green-600 mt-1">URL: <a href="${response.data.url}" target="_blank" class="underline">${response.data.url}</a></p>
+                    </div>
+                `;
+                fileInput.value = '';
+                
+                // Refresh images tab if it's visible
+                if (!document.getElementById('images').classList.contains('hidden')) {
+                    loadUploadedImages();
+                }
+            } catch (error) {
+                document.getElementById('uploadResult').innerHTML = `
+                    <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                        <p class="text-red-800">Upload failed: ${error.response?.data?.message || 'Unknown error'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function uploadTestImage() {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const fileInput = document.getElementById('testImage');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showNotification('Please select an image file', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await axios.post('/upload/image', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                document.getElementById('testUploadResult').innerHTML = `
+                    <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                        <p class="text-green-800">Image uploaded successfully!</p>
+                        <div class="mt-2">
+                            <img src="${response.data.url}" alt="Uploaded image" class="max-w-xs rounded border">
+                        </div>
+                        <p class="text-sm text-green-600 mt-2">URL: <a href="${response.data.url}" target="_blank" class="underline">${response.data.url}</a></p>
+                    </div>
+                `;
+                fileInput.value = '';
+                showNotification('Test image uploaded successfully!', 'success');
+                
+                // Refresh images tab if it's visible
+                if (!document.getElementById('images').classList.contains('hidden')) {
+                    loadUploadedImages();
+                }
+            } catch (error) {
+                document.getElementById('testUploadResult').innerHTML = `
+                    <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                        <p class="text-red-800">Upload failed: ${error.response?.data?.message || 'Unknown error'}</p>
+                    </div>
+                `;
+                showNotification(error.response?.data?.message || 'Image upload failed', 'error');
+            }
+        }
+
+        // Initialize product categories
+        function initializeProductCategories() {
+            const categories = [
+                { value: 'COFFEE', label: 'Coffee' },
+                { value: 'TEA', label: 'Tea' },
+                { value: 'DESSERT', label: 'Dessert' },
+                { value: 'SNACK', label: 'Snack' }
+            ];
+
+            const categorySelects = [
+                document.getElementById('productCategory'),
+                document.getElementById('productCategoryWithImage'),
+                document.getElementById('editProductCategory')
+            ];
+
+            categorySelects.forEach(select => {
+                if (select) {
+                    select.innerHTML = categories.map(cat => 
+                        `<option value="${cat.value}">${cat.label}</option>`
+                    ).join('');
+                }
+            });
+        }
+
+        // Event listeners for modals
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
+            }
+        });
+
+        document.getElementById('editProductModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditProductModal();
+            }
+        });
+
+        // Event listeners
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        // Orders Functions
+        async function loadOrders() {
+            if (!accessToken) {
+                return;
+            }
+
+            try {
+                const response = await axios.get('/orders');
+                displayOrders(response.data);
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to load orders', 'error');
+            }
+        }
+
+        async function getAllOrders() {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            try {
+                const response = await axios.get('/orders');
+                displayOrders(response.data);
+                showNotification('Orders loaded successfully!', 'success');
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to get orders', 'error');
+            }
+        }
+
+        function displayOrders(orders) {
+            const ordersList = document.getElementById('ordersList');
+            ordersList.innerHTML = orders.map(order => `
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <h4 class="font-medium text-gray-900">Order #${order.id.slice(0, 8)}</h4>
+                            <p class="text-sm text-gray-600">Customer: ${order.user.name}</p>
+                            <p class="text-sm text-gray-600">Phone: ${order.user.phoneNumber}</p>
+                            <p class="text-sm text-gray-600">Branch: ${order.branch.name}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Status: <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}">${order.status}</span></p>
+                            <p class="text-sm text-gray-600">Total: ${order.total.toFixed(2)}</p>
+                            <p class="text-sm text-gray-600">Created: ${new Date(order.createdAt).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                            <h5 class="font-medium text-gray-900 mb-1">Items:</h5>
+                            ${order.items.map(item => `
+                                <p class="text-sm text-gray-600">${item.quantity}x ${item.product.name} - ${item.price.toFixed(2)}</p>
+                            `).join('')}
+                        </div>
+                        <div class="flex flex-col space-y-2">
+                            <button onclick="editOrderStatus('${order.id}', '${order.status}')" class="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">Edit Status</button>
+                            <button onclick="deleteOrderFromCard('${order.id}')" class="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">Delete</button>
+                            <button onclick="copyToClipboard('${order.id}')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300">Copy ID</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+                case 'CONFIRMED': return 'bg-blue-100 text-blue-800';
+                case 'PREPARING': return 'bg-orange-100 text-orange-800';
+                case 'READY': return 'bg-green-100 text-green-800';
+                case 'COMPLETED': return 'bg-gray-100 text-gray-800';
+                case 'CANCELLED': return 'bg-red-100 text-red-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        async function createOrder(event) {
+            event.preventDefault();
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            const branchId = document.getElementById('orderBranch').value;
+            if (!branchId) {
+                showNotification('Please select a branch', 'error');
+                return;
+            }
+
+            const orderItems = [];
+            const itemRows = document.querySelectorAll('#orderProducts .order-item-row');
+            
+            for (let row of itemRows) {
+                const productId = row.querySelector('.order-product-select').value;
+                const quantity = parseInt(row.querySelector('.order-quantity-input').value);
+                
+                if (productId && quantity > 0) {
+                    orderItems.push({ productId, quantity });
+                }
+            }
+
+            if (orderItems.length === 0) {
+                showNotification('Please add at least one item to the order', 'error');
+                return;
+            }
+
+            try {
+                const orderData = {
+                    branchId,
+                    items: orderItems
+                };
+
+                const response = await axios.post('/orders', orderData);
+                showNotification('Order created successfully!', 'success');
+                
+                // Reset form
+                document.getElementById('orderBranch').value = '';
+                document.getElementById('orderProducts').innerHTML = '';
+                
+                // Refresh orders list
+                loadOrders();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to create order', 'error');
+            }
+        }
+
+        function addOrderItem() {
+            const orderProducts = document.getElementById('orderProducts');
+            const itemRow = document.createElement('div');
+            itemRow.className = 'order-item-row grid grid-cols-3 gap-2 items-center';
+            itemRow.innerHTML = `
+                <select class="order-product-select rounded-md border-gray-300 shadow-sm" required>
+                    <option value="">Select product</option>
+                </select>
+                <input type="number" class="order-quantity-input rounded-md border-gray-300 shadow-sm" placeholder="Quantity" min="1" value="1" required>
+                <button type="button" onclick="removeOrderItem(this)" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Remove</button>
+            `;
+            orderProducts.appendChild(itemRow);
+            
+            // Populate product options for the new select
+            updateOrderProductOptions();
+        }
+
+        function removeOrderItem(button) {
+            button.closest('.order-item-row').remove();
+        }
+
+        function updateOrderProductOptions() {
+            const productSelects = document.querySelectorAll('.order-product-select');
+            const availableProducts = window.availableProducts || [];
+            
+            productSelects.forEach(select => {
+                const currentValue = select.value;
+                select.innerHTML = '<option value="">Select product</option>' +
+                    availableProducts.map(p => `<option value="${p.id}">${p.name} - ${p.basePrice.toFixed(2)}</option>`).join('');
+                if (currentValue && availableProducts.find(p => p.id === currentValue)) {
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        async function getSpecificOrder() {
+            const orderId = document.getElementById('getOrderId').value;
+            if (!orderId) {
+                showNotification('Please enter an order ID', 'error');
+                return;
+            }
+
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            try {
+                const response = await axios.get(`/orders/${orderId}`);
+                displayOrders([response.data]);
+                showNotification('Order loaded successfully!', 'success');
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to get order', 'error');
+            }
+        }
+
+        async function updateOrderStatus() {
+            const orderId = document.getElementById('updateOrderId').value;
+            const status = document.getElementById('orderStatus').value;
+            
+            if (!orderId || !status) {
+                showNotification('Please enter order ID and select status', 'error');
+                return;
+            }
+
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            try {
+                await axios.patch(`/orders/${orderId}`, { status });
+                showNotification('Order status updated successfully!', 'success');
+                
+                // Clear form
+                document.getElementById('updateOrderId').value = '';
+                document.getElementById('orderStatus').value = 'PENDING';
+                
+                // Refresh orders
+                loadOrders();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to update order status', 'error');
+            }
+        }
+
+        async function deleteOrder() {
+            const orderId = document.getElementById('deleteOrderId').value;
+            if (!orderId) {
+                showNotification('Please enter an order ID', 'error');
+                return;
+            }
+
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/orders/${orderId}`);
+                showNotification('Order deleted successfully!', 'success');
+                
+                // Clear form
+                document.getElementById('deleteOrderId').value = '';
+                
+                // Refresh orders
+                loadOrders();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to delete order', 'error');
+            }
+        }
+
+        async function deleteOrderFromCard(orderId) {
+            if (!accessToken) {
+                showNotification('Please login first', 'error');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete this order?')) {
+                return;
+            }
+
+            try {
+                await axios.delete(`/orders/${orderId}`);
+                showNotification('Order deleted successfully!', 'success');
+                
+                // Refresh orders
+                loadOrders();
+            } catch (error) {
+                showNotification(error.response?.data?.message || 'Failed to delete order', 'error');
+            }
+        }
+
+        function editOrderStatus(orderId, currentStatus) {
+            // Pre-fill the order management form
+            document.getElementById('updateOrderId').value = orderId;
+            document.getElementById('orderStatus').value = currentStatus;
+            
+            // Scroll to the order management section
+            const orderManagementSection = document.querySelector('#orders .bg-white:nth-child(2)');
+            if (orderManagementSection) {
+                orderManagementSection.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                
+                // Highlight the form briefly
+                orderManagementSection.style.border = '2px solid #3B82F6';
+                setTimeout(() => {
+                    orderManagementSection.style.border = '';
+                }, 2000);
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showNotification('ID copied to clipboard!', 'success');
+                }).catch(() => {
+                    fallbackCopyToClipboard(text);
+                });
+            } else {
+                fallbackCopyToClipboard(text);
+            }
+        }
+
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showNotification('ID copied to clipboard!', 'success');
+            } catch (err) {
+                showNotification('Failed to copy to clipboard', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function initializeOrderForm() {
+            console.log('Initializing order form...');
+            console.log('Available branches:', window.availableBranches?.length || 0);
+            console.log('Available products:', window.availableProducts?.length || 0);
+            
+            // Clear any existing order items
+            document.getElementById('orderProducts').innerHTML = '';
+            // Add one initial order item
+            addOrderItem();
+            // Update branch options
+            updateOrderBranchOptions();
+            
+            console.log('Order form initialized');
+        }
+
+        function updateOrderBranchOptions() {
+            const branchSelect = document.getElementById('orderBranch');
+            const availableBranches = window.availableBranches || [];
+            
+            if (branchSelect) {
+                const currentValue = branchSelect.value;
+                branchSelect.innerHTML = '<option value="">Select a branch</option>' +
+                    availableBranches.map(b => `<option value="${b.id}">${b.name} - ${b.address || 'No address'}</option>`).join('');
+                if (currentValue && availableBranches.find(b => b.id === currentValue)) {
+                    branchSelect.value = currentValue;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

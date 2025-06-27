@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .response {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            white-space: pre-wrap;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Auth Test Page</h1>
+        
+        <!-- Login Form -->
+        <div class="card">
+            <h2>Login</h2>
+            <div class="form-group">
+                <label for="phoneNumber">Phone Number:</label>
+                <input type="text" id="phoneNumber" placeholder="+1234567890">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password">
+            </div>
+            <button onclick="login()">Login</button>
+            <div id="loginResponse" class="response"></div>
+        </div>
+
+        <!-- Refresh Token -->
+        <div class="card">
+            <h2>Refresh Token</h2>
+            <button onclick="refreshToken()">Refresh Token</button>
+            <div id="refreshResponse" class="response"></div>
+        </div>
+
+        <!-- Logout -->
+        <div class="card">
+            <h2>Logout</h2>
+            <button onclick="logout()">Logout</button>
+            <div id="logoutResponse" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        let accessToken = '';
+
+        // Helper function to show cookie info
+        function displayCookies() {
+            console.log('Current cookies:', document.cookie);
+        }
+
+        async function login() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const password = document.getElementById('password').value;
+            const responseDiv = document.getElementById('loginResponse');
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phoneNumber, password }),
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    accessToken = data.accessToken;
+                    responseDiv.innerHTML = `<div class="success">Login successful! Access token received.</div>`;
+                    responseDiv.innerHTML += `<div>User: ${JSON.stringify(data.user, null, 2)}</div>`;
+                    displayCookies();
+                } else {
+                    responseDiv.innerHTML = `<div class="error">Login failed: ${data.message || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function refreshToken() {
+            const responseDiv = document.getElementById('refreshResponse');
+            displayCookies();
+
+            try {
+                const response = await fetch(`${API_URL}/auth/refresh`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    accessToken = data.accessToken;
+                    responseDiv.innerHTML = `<div class="success">Token refreshed successfully!</div>`;
+                    responseDiv.innerHTML += `<div>New access token received.</div>`;
+                } else {
+                    responseDiv.innerHTML = `<div class="error">Refresh failed: ${data.message || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function logout() {
+            const responseDiv = document.getElementById('logoutResponse');
+
+            try {
+                const response = await fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    accessToken = '';
+                    responseDiv.innerHTML = `<div class="success">Logout successful!</div>`;
+                } else {
+                    responseDiv.innerHTML = `<div class="error">Logout failed: ${data.message || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html> 

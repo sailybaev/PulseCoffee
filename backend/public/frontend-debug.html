@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Frontend Debug</h1>
+    
+    <div class="debug">
+        <h2>Current URL Information</h2>
+        <div id="url-info"></div>
+    </div>
+    
+    <div class="debug">
+        <h2>Backend Connectivity Test</h2>
+        <button onclick="testBackendConnection()">Test Backend</button>
+        <div id="backend-result" class="result"></div>
+    </div>
+    
+    <div class="debug">
+        <h2>Branch Flow Simulation</h2>
+        <button onclick="simulateTabletFlow()">Simulate Tablet Setup</button>
+        <div id="flow-result" class="result"></div>
+    </div>
+    
+    <div class="debug">
+        <h2>Direct Admin Unlock Test</h2>
+        <input type="password" id="admin-password" placeholder="Admin password" value="admin123">
+        <input type="text" id="device-id" placeholder="Device ID" value="tablet_udp_debug">
+        <button onclick="testDirectUnlock()">Test Admin Unlock</button>
+        <div id="unlock-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        function updateUrlInfo() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const branchParam = urlParams.get('branch');
+            
+            document.getElementById('url-info').innerHTML = `
+                <strong>Current URL:</strong> ${window.location.href}<br>
+                <strong>Branch Parameter:</strong> ${branchParam || 'Not found'}<br>
+                <strong>API Base:</strong> ${API_BASE}<br>
+                <strong>Timestamp:</strong> ${new Date().toISOString()}
+            `;
+        }
+
+        async function testBackendConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/branches-public`);
+                const data = await response.json();
+                
+                document.getElementById('backend-result').innerHTML = `
+                    <div class="success">
+                        ✅ Backend connection successful!<br>
+                        Found ${data.length} branches<br>
+                        Status: ${response.status}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('backend-result').innerHTML = `
+                    <div class="error">❌ Backend connection failed: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function simulateTabletFlow() {
+            const log = [];
+            const deviceId = 'tablet_udp_debug_' + Date.now();
+            
+            try {
+                // Step 1: Get branches
+                log.push('🔍 Fetching branches...');
+                const branchesResponse = await fetch(`${API_BASE}/branches-public`);
+                const branches = await branchesResponse.json();
+                log.push(`✅ Found ${branches.length} branches`);
+                
+                // Step 2: Validate UDP branch
+                log.push('🔍 Validating UDP branch...');
+                const validateResponse = await fetch(`${API_BASE}/branches-public/UDP/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceInfo: {
+                            deviceId: deviceId,
+                            userAgent: navigator.userAgent,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+                
+                if (validateResponse.ok) {
+                    log.push('✅ UDP branch is valid');
+                } else {
+                    log.push('❌ UDP branch validation failed');
+                }
+                
+                // Step 3: Register device
+                log.push('🔍 Registering device...');
+                const registerResponse = await fetch(`${API_BASE}/devices/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceId: deviceId,
+                        branchId: 'UDP',
+                        deviceInfo: {
+                            deviceId: deviceId,
+                            userAgent: navigator.userAgent,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+                
+                if (registerResponse.ok) {
+                    const registerData = await registerResponse.json();
+                    log.push(`✅ Device registered: ${registerData.deviceId}`);
+                    
+                    // Step 4: Test unlock
+                    log.push('🔍 Testing admin unlock...');
+                    const unlockResponse = await fetch(`${API_BASE}/admin/unlock`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            password: 'admin123',
+                            deviceId: deviceId
+                        })
+                    });
+                    
+                    if (unlockResponse.ok) {
+                        const unlockData = await unlockResponse.json();
+                        log.push(`✅ Unlock successful: ${unlockData.message}`);
+                    } else {
+                        log.push('❌ Unlock failed');
+                    }
+                } else {
+                    log.push('❌ Device registration failed');
+                }
+                
+                document.getElementById('flow-result').innerHTML = `
+                    <div class="success">
+                        <strong>Tablet Flow Test Results:</strong><br>
+                        ${log.map(l => `${l}<br>`).join('')}
+                    </div>
+                `;
+                
+            } catch (error) {
+                log.push(`❌ Error: ${error.message}`);
+                document.getElementById('flow-result').innerHTML = `
+                    <div class="error">
+                        <strong>Tablet Flow Test Failed:</strong><br>
+                        ${log.map(l => `${l}<br>`).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        async function testDirectUnlock() {
+            const password = document.getElementById('admin-password').value;
+            const deviceId = document.getElementById('device-id').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/unlock`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, deviceId })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    document.getElementById('unlock-result').innerHTML = `
+                        <div class="success">
+                            ✅ ${data.message}<br>
+                            Device: ${deviceId}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('unlock-result').innerHTML = `
+                        <div class="error">❌ Admin unlock failed: ${data.message || 'Unknown error'}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('unlock-result').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Initialize
+        updateUrlInfo();
+    </script>
+</body>
+</html>

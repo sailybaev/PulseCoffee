@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch System Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Pulse Coffee - Branch System Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Get Available Branches</h2>
+        <button onclick="getBranches()">Get Branches</button>
+        <div id="branches-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Validate Branch</h2>
+        <input type="text" id="branch-id" placeholder="Branch ID (e.g., UDP)" value="UDP">
+        <button onclick="validateBranch()">Validate Branch</button>
+        <div id="validate-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Register Device</h2>
+        <input type="text" id="device-id" placeholder="Device ID" value="test_tablet_123">
+        <input type="text" id="device-branch" placeholder="Branch ID" value="UDP">
+        <button onclick="registerDevice()">Register Device</button>
+        <div id="register-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Admin Unlock</h2>
+        <input type="password" id="admin-password" placeholder="Admin Password" value="admin123">
+        <input type="text" id="unlock-device-id" placeholder="Device ID" value="test_tablet_123">
+        <button onclick="adminUnlock()">Admin Unlock</button>
+        <div id="unlock-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Full Branch Setup Flow</h2>
+        <p>Simulates tablet accessing: <code>http://localhost:4321/?branch=UDP</code></p>
+        <button onclick="simulateTabletSetup()">Simulate Tablet Setup</button>
+        <div id="setup-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        async function getBranches() {
+            try {
+                const response = await fetch(`${API_BASE}/branches-public`);
+                const data = await response.json();
+                
+                document.getElementById('branches-result').innerHTML = `
+                    <div class="success">
+                        <strong>Available Branches:</strong><br>
+                        ${data.map(branch => `${branch.name} (${branch.id}) - ${branch.address}`).join('<br>')}
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('branches-result').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function validateBranch() {
+            const branchId = document.getElementById('branch-id').value;
+            try {
+                const response = await fetch(`${API_BASE}/branches-public/${branchId}/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceInfo: {
+                            deviceId: 'test_device_123',
+                            userAgent: navigator.userAgent,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.valid) {
+                    document.getElementById('validate-result').innerHTML = `
+                        <div class="success">
+                            ✅ Branch "${data.branch.name}" is valid!<br>
+                            Address: ${data.branch.address}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('validate-result').innerHTML = `
+                        <div class="error">❌ Branch validation failed</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('validate-result').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function registerDevice() {
+            const deviceId = document.getElementById('device-id').value;
+            const branchId = document.getElementById('device-branch').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/devices/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceId,
+                        branchId,
+                        deviceInfo: {
+                            deviceId,
+                            userAgent: navigator.userAgent,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    document.getElementById('register-result').innerHTML = `
+                        <div class="success">
+                            ✅ Device registered successfully!<br>
+                            Device: ${data.deviceId}<br>
+                            Branch: ${data.branchId}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('register-result').innerHTML = `
+                        <div class="error">❌ Device registration failed</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('register-result').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function adminUnlock() {
+            const password = document.getElementById('admin-password').value;
+            const deviceId = document.getElementById('unlock-device-id').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/unlock`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, deviceId })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    document.getElementById('unlock-result').innerHTML = `
+                        <div class="success">
+                            ✅ ${data.message}<br>
+                            Device: ${deviceId}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('unlock-result').innerHTML = `
+                        <div class="error">❌ Admin unlock failed: ${data.message || 'Unknown error'}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('unlock-result').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function simulateTabletSetup() {
+            const setupLog = [];
+            const branchId = 'UDP'; // From URL parameter ?branch=UDP
+            
+            try {
+                // Step 1: Validate branch from URL
+                setupLog.push('🔍 Validating branch from URL...');
+                const validateResponse = await fetch(`${API_BASE}/branches-public/${branchId}/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceInfo: {
+                            deviceId: 'tablet_udp_001',
+                            userAgent: navigator.userAgent,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+                
+                if (!validateResponse.ok) {
+                    throw new Error('Branch validation failed');
+                }
+                
+                setupLog.push('✅ Branch UDP validated successfully');
+                
+                // Step 2: Register device
+                setupLog.push('📱 Registering tablet device...');
+                const registerResponse = await fetch(`${API_BASE}/devices/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        deviceId: 'tablet_udp_001',
+                        branchId: branchId,
+                        deviceInfo: {
+                            deviceId: 'tablet_udp_001',
+                            userAgent: navigator.userAgent,
+                            screenResolution: `${screen.width}x${screen.height}`,
+                            timestamp: Date.now()
+                        }
+                    })
+                });
+                
+                if (!registerResponse.ok) {
+                    throw new Error('Device registration failed');
+                }
+                
+                setupLog.push('✅ Device registered and locked to UDP branch');
+                setupLog.push('🔒 Tablet configuration complete - ready for use');
+                setupLog.push('⚠️ To unlock: 10 clicks in corner + admin password');
+                
+                document.getElementById('setup-result').innerHTML = `
+                    <div class="success">
+                        <strong>Tablet Setup Simulation Complete:</strong><br>
+                        ${setupLog.join('<br>')}
+                    </div>
+                `;
+                
+            } catch (error) {
+                setupLog.push(`❌ Error: ${error.message}`);
+                document.getElementById('setup-result').innerHTML = `
+                    <div class="error">
+                        <strong>Setup Failed:</strong><br>
+                        ${setupLog.join('<br>')}
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

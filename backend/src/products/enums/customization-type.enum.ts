@@ -1,0 +1,8 @@
+export enum CustomizationType {
+  CUP_SIZE = 'CUP_SIZE',
+  MILK_TYPE = 'MILK_TYPE',
+  SYRUP = 'SYRUP',
+  EXTRA_SHOT = 'EXTRA_SHOT',
+  TEMPERATURE = 'TEMPERATURE',
+  OTHER = 'OTHER'
+} 

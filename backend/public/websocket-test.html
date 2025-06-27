@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Order Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 15px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #logs { height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f8f9fa; }
+        .form-group { margin: 10px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Order Notification Test</h1>
+        
+        <div class="status" id="connectionStatus">Disconnected</div>
+        
+        <div class="form-group">
+            <h3>Step 1: Login</h3>
+            <label>Phone Number:</label>
+            <input type="text" id="phoneNumber" value="+1987654321" placeholder="Phone number">
+            <label>Password:</label>
+            <input type="password" id="password" value="password123" placeholder="Password">
+            <button onclick="login()">Login</button>
+        </div>
+        
+        <div class="form-group">
+            <h3>Step 2: Join Barista Room</h3>
+            <label>Branch ID:</label>
+            <input type="text" id="branchId" placeholder="Branch ID (will be auto-filled)">
+            <button onclick="joinBaristaRoom()">Join Barista Room</button>
+        </div>
+        
+        <div class="form-group">
+            <h3>Step 3: Create Test Order</h3>
+            <label>Product:</label>
+            <select id="productSelect">
+                <option value="">Select a product</option>
+            </select>
+            <button onclick="createTestOrder()">Create Test Order</button>
+        </div>
+        
+        <div class="form-group">
+            <h3>WebSocket Events Log</h3>
+            <div id="logs"></div>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+    </div>
+    
+    <script>
+        let socket = null;
+        let accessToken = null;
+        let branches = [];
+        let products = [];
+        
+        // Configure axios
+        axios.defaults.baseURL = window.location.origin + '/api';
+        axios.defaults.withCredentials = true;
+        
+        function log(message, type = 'info') {
+            const now = new Date().toLocaleTimeString();
+            const logs = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.textContent = `[${now}] ${message}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('connectionStatus');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        async function login() {
+            try {
+                const phoneNumber = document.getElementById('phoneNumber').value;
+                const password = document.getElementById('password').value;
+                
+                const response = await axios.post('/auth/login', {
+                    phoneNumber,
+                    password
+                });
+                
+                accessToken = response.data.accessToken;
+                axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+                
+                log(`Login successful for ${phoneNumber}`, 'success');
+                await connectWebSocket();
+                await loadData();
+                
+            } catch (error) {
+                log(`Login failed: ${error.response?.data?.message || error.message}`, 'error');
+            }
+        }
+        
+        async function connectWebSocket() {
+            if (!accessToken) {
+                log('Cannot connect WebSocket: no access token', 'error');
+                return;
+            }
+            
+            socket = io({
+                auth: {
+                    token: accessToken
+                }
+            });
+            
+            socket.on('connect', () => {
+                updateStatus('WebSocket Connected', 'success');
+                log('WebSocket connected successfully', 'success');
+            });
+            
+            socket.on('disconnect', () => {
+                updateStatus('WebSocket Disconnected', 'error');
+                log('WebSocket disconnected', 'error');
+            });
+            
+            socket.on('newOrder', (order) => {
+                log(`🎉 NEW ORDER RECEIVED! Order #${order.id} for $${order.total}`, 'success');
+                updateStatus(`Order #${order.id} received!`, 'success');
+            });
+            
+            socket.on('orderStatusUpdate', (data) => {
+                log(`📋 Order status update: Order ${data.orderId} -> ${data.status}`, 'info');
+            });
+            
+            socket.on('joinedBaristaRoom', (data) => {
+                log(`✅ Successfully joined barista room for branch ${data.branchId}`, 'success');
+            });
+            
+            socket.on('connect_error', (error) => {
+                log(`WebSocket connection error: ${error.message}`, 'error');
+                updateStatus('Connection Error', 'error');
+            });
+        }
+        
+        async function loadData() {
+            try {
+                // Load branches
+                const branchesResponse = await axios.get('/branches');
+                branches = branchesResponse.data;
+                
+                if (branches.length > 0) {
+                    document.getElementById('branchId').value = branches[0].id;
+                    log(`Loaded ${branches.length} branches. First branch: ${branches[0].name}`, 'info');
+                }
+                
+                // Load products
+                const productsResponse = await axios.get('/products');
+                products = productsResponse.data;
+                
+                const productSelect = document.getElementById('productSelect');
+                productSelect.innerHTML = '<option value="">Select a product</option>';
+                products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = `${product.name} - $${product.basePrice}`;
+                    productSelect.appendChild(option);
+                });
+                
+                log(`Loaded ${products.length} products`, 'info');
+                
+            } catch (error) {
+                log(`Failed to load data: ${error.response?.data?.message || error.message}`, 'error');
+            }
+        }
+        
+        function joinBaristaRoom() {
+            const branchId = document.getElementById('branchId').value;
+            if (!socket) {
+                log('Cannot join barista room: not connected to WebSocket', 'error');
+                return;
+            }
+            
+            if (!branchId) {
+                log('Cannot join barista room: no branch ID specified', 'error');
+                return;
+            }
+            
+            log(`Attempting to join barista room for branch ${branchId}...`, 'info');
+            socket.emit('joinBaristaRoom', branchId);
+        }
+        
+        async function createTestOrder() {
+            try {
+                const branchId = document.getElementById('branchId').value;
+                const productId = document.getElementById('productSelect').value;
+                
+                if (!branchId || !productId) {
+                    log('Cannot create order: missing branch or product', 'error');
+                    return;
+                }
+                
+                const orderData = {
+                    branchId: branchId,
+                    items: [{
+                        productId: productId,
+                        quantity: 1
+                    }]
+                };
+                
+                log(`Creating test order...`, 'info');
+                const response = await axios.post('/orders', orderData);
+                
+                log(`✅ Order created successfully! Order ID: ${response.data.id}`, 'success');
+                
+            } catch (error) {
+                log(`Failed to create order: ${error.response?.data?.message || error.message}`, 'error');
+            }
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

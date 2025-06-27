@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Unlock Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Admin Unlock Test</h1>
+    
+    <div>
+        <h2>Test Admin Unlock</h2>
+        <input type="password" id="admin-password" placeholder="Admin password" value="admin123">
+        <input type="text" id="device-id" placeholder="Device ID" value="test-device-udp">
+        <button onclick="testAdminUnlock()">Test Admin Unlock</button>
+        <div id="unlock-result" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        async function testAdminUnlock() {
+            const password = document.getElementById('admin-password').value;
+            const deviceId = document.getElementById('device-id').value;
+            
+            console.log('Testing admin unlock...');
+            console.log('Password:', password);
+            console.log('Device ID:', deviceId);
+            console.log('API URL:', `${API_BASE}/admin/unlock`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/admin/unlock`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, deviceId })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (response.ok && data.success) {
+                    document.getElementById('unlock-result').innerHTML = `
+                        <div class="success">
+                            ✅ ${data.message}<br>
+                            Device: ${deviceId}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('unlock-result').innerHTML = `
+                        <div class="error">❌ Admin unlock failed: ${data.message || 'Unknown error'}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('unlock-result').innerHTML = `
+                    <div class="error">Error: ${error.message}</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

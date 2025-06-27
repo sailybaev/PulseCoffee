@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel Test - PulseCoffee</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #8B4513;
+            border-bottom: 2px solid #8B4513;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #333;
+            margin-top: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        
+        button {
+            background: #8B4513;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #A0522D;
+        }
+        
+        button.secondary {
+            background: #6c757d;
+        }
+        
+        button.secondary:hover {
+            background: #5a6268;
+        }
+        
+        .auth-section {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        
+        .file-upload {
+            border: 2px dashed #8B4513;
+            padding: 20px;
+            text-align: center;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍵 PulseCoffee Admin Panel Test</h1>
+        
+        <div class="auth-section">
+            <h2>Authentication</h2>
+            <div class="form-group">
+                <label for="adminPhone">Admin Phone:</label>
+                <input type="text" id="adminPhone" placeholder="+1234567890">
+            </div>
+            <div class="form-group">
+                <label for="adminPassword">Password:</label>
+                <input type="password" id="adminPassword" placeholder="Password">
+            </div>
+            <button onclick="adminLogin()">Login as Admin</button>
+            <button onclick="logout()" class="secondary">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Product Management</h2>
+        
+        <div class="two-column">
+            <div>
+                <h3>Create Product</h3>
+                <div class="form-group">
+                    <label for="productName">Product Name:</label>
+                    <input type="text" id="productName" placeholder="Cappuccino">
+                </div>
+                <div class="form-group">
+                    <label for="productDescription">Description:</label>
+                    <textarea id="productDescription" placeholder="Rich espresso with steamed milk..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="productPrice">Base Price:</label>
+                    <input type="number" id="productPrice" step="0.01" placeholder="4.50">
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">Category:</label>
+                    <select id="productCategory">
+                        <option value="COFFEE">Coffee</option>
+                        <option value="TEA">Tea</option>
+                        <option value="PASTRY">Pastry</option>
+                        <option value="SANDWICH">Sandwich</option>
+                        <option value="SNACK">Snack</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="productImageUrl">Image URL (optional):</label>
+                    <input type="text" id="productImageUrl" placeholder="http://example.com/image.jpg">
+                </div>
+                <button onclick="createProduct()">Create Product</button>
+            </div>
+            
+            <div>
+                <h3>Create Product with Image Upload</h3>
+                <div class="form-group">
+                    <label for="productNameWithImage">Product Name:</label>
+                    <input type="text" id="productNameWithImage" placeholder="Latte">
+                </div>
+                <div class="form-group">
+                    <label for="productDescriptionWithImage">Description:</label>
+                    <textarea id="productDescriptionWithImage" placeholder="Smooth espresso with milk..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="productPriceWithImage">Base Price:</label>
+                    <input type="number" id="productPriceWithImage" step="0.01" placeholder="5.00">
+                </div>
+                <div class="form-group">
+                    <label for="productCategoryWithImage">Category:</label>
+                    <select id="productCategoryWithImage">
+                        <option value="COFFEE">Coffee</option>
+                        <option value="TEA">Tea</option>
+                        <option value="PASTRY">Pastry</option>
+                        <option value="SANDWICH">Sandwich</option>
+                        <option value="SNACK">Snack</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group file-upload">
+                    <label for="productImage">Product Image:</label>
+                    <input type="file" id="productImage" accept="image/*">
+                    <p>Choose an image file (JPG, PNG, GIF, WebP - max 5MB)</p>
+                </div>
+                <button onclick="createProductWithImage()">Create Product with Image</button>
+            </div>
+        </div>
+        
+        <div id="productResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>Order Management</h2>
+        
+        <div class="two-column">
+            <div>
+                <h3>Get All Orders</h3>
+                <button onclick="getAllOrders()">Load All Orders</button>
+                
+                <h3>Get Specific Order</h3>
+                <div class="form-group">
+                    <label for="orderId">Order ID:</label>
+                    <input type="text" id="orderId" placeholder="uuid-order-id">
+                </div>
+                <button onclick="getOrder()">Get Order</button>
+            </div>
+            
+            <div>
+                <h3>Update Order Status</h3>
+                <div class="form-group">
+                    <label for="updateOrderId">Order ID:</label>
+                    <input type="text" id="updateOrderId" placeholder="uuid-order-id">
+                </div>
+                <div class="form-group">
+                    <label for="orderStatus">New Status:</label>
+                    <select id="orderStatus">
+                        <option value="PENDING">Pending</option>
+                        <option value="CONFIRMED">Confirmed</option>
+                        <option value="PREPARING">Preparing</option>
+                        <option value="READY">Ready</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+                <button onclick="updateOrderStatus()">Update Status</button>
+                
+                <h3>Delete Order</h3>
+                <div class="form-group">
+                    <label for="deleteOrderId">Order ID:</label>
+                    <input type="text" id="deleteOrderId" placeholder="uuid-order-id">
+                </div>
+                <button onclick="deleteOrder()" style="background-color: #dc3545;">Delete Order</button>
+            </div>
+        </div>
+        
+        <div id="orderResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>Upload Test</h2>
+        
+        <div class="form-group file-upload">
+            <label for="testImage">Test Image Upload:</label>
+            <input type="file" id="testImage" accept="image/*">
+            <p>Choose an image file to test upload functionality</p>
+        </div>
+        <button onclick="uploadImage()">Upload Image</button>
+        
+        <div id="uploadResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('authToken');
+        let refreshToken = localStorage.getItem('refreshToken');
+        
+        const API_BASE = 'http://localhost:3000/api';
+        
+        // Auth functions
+        async function adminLogin() {
+            const phone = document.getElementById('adminPhone').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            if (!phone || !password) {
+                showResult('auth', 'Please enter phone and password', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phoneNumber: phone, password: password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.accessToken;
+                    refreshToken = data.refreshToken;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('refreshToken', refreshToken);
+                    showResult('auth', `Login successful! Role: ${data.user.role}`, 'success');
+                } else {
+                    showResult('auth', `Login failed: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('auth', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function logout() {
+            authToken = null;
+            refreshToken = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            showResult('auth', 'Logged out successfully', 'success');
+        }
+        
+        // Product functions
+        async function createProduct() {
+            if (!authToken) {
+                showResult('product', 'Please login first', 'error');
+                return;
+            }
+            
+            const productData = {
+                name: document.getElementById('productName').value,
+                description: document.getElementById('productDescription').value,
+                basePrice: parseFloat(document.getElementById('productPrice').value),
+                category: document.getElementById('productCategory').value,
+                imageUrl: document.getElementById('productImageUrl').value || undefined
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/products`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(productData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('product', `Product created successfully:\\n${JSON.stringify(data, null, 2)}`, 'success');
+                    // Clear form
+                    document.getElementById('productName').value = '';
+                    document.getElementById('productDescription').value = '';
+                    document.getElementById('productPrice').value = '';
+                    document.getElementById('productImageUrl').value = '';
+                } else {
+                    showResult('product', `Failed to create product:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('product', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function createProductWithImage() {
+            if (!authToken) {
+                showResult('product', 'Please login first', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('name', document.getElementById('productNameWithImage').value);
+            formData.append('description', document.getElementById('productDescriptionWithImage').value);
+            formData.append('basePrice', document.getElementById('productPriceWithImage').value);
+            formData.append('category', document.getElementById('productCategoryWithImage').value);
+            
+            const imageFile = document.getElementById('productImage').files[0];
+            if (imageFile) {
+                formData.append('image', imageFile);
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/products/with-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('product', `Product with image created successfully:\\n${JSON.stringify(data, null, 2)}`, 'success');
+                    // Clear form
+                    document.getElementById('productNameWithImage').value = '';
+                    document.getElementById('productDescriptionWithImage').value = '';
+                    document.getElementById('productPriceWithImage').value = '';
+                    document.getElementById('productImage').value = '';
+                } else {
+                    showResult('product', `Failed to create product with image:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('product', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Order functions
+        async function getAllOrders() {
+            if (!authToken) {
+                showResult('order', 'Please login first', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('order', `All orders:\\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('order', `Failed to get orders:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('order', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getOrder() {
+            if (!authToken) {
+                showResult('order', 'Please login first', 'error');
+                return;
+            }
+            
+            const orderId = document.getElementById('orderId').value;
+            if (!orderId) {
+                showResult('order', 'Please enter order ID', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${orderId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('order', `Order details:\\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('order', `Failed to get order:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('order', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function updateOrderStatus() {
+            if (!authToken) {
+                showResult('order', 'Please login first', 'error');
+                return;
+            }
+            
+            const orderId = document.getElementById('updateOrderId').value;
+            const status = document.getElementById('orderStatus').value;
+            
+            if (!orderId || !status) {
+                showResult('order', 'Please enter order ID and select status', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${orderId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ status: status })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('order', `Order status updated successfully:\\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('order', `Failed to update order status:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('order', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteOrder() {
+            if (!authToken) {
+                showResult('order', 'Please login first', 'error');
+                return;
+            }
+            
+            const orderId = document.getElementById('deleteOrderId').value;
+            if (!orderId) {
+                showResult('order', 'Please enter order ID', 'error');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to delete this order?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/orders/${orderId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    showResult('order', `Order deleted successfully`, 'success');
+                } else {
+                    const data = await response.json();
+                    showResult('order', `Failed to delete order:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('order', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Upload function
+        async function uploadImage() {
+            if (!authToken) {
+                showResult('upload', 'Please login first', 'error');
+                return;
+            }
+            
+            const imageFile = document.getElementById('testImage').files[0];
+            if (!imageFile) {
+                showResult('upload', 'Please select an image file', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', imageFile);
+            
+            try {
+                const response = await fetch(`${API_BASE}/upload/image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('upload', `Image uploaded successfully:\\n${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('upload', `Failed to upload image:\\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                showResult('upload', `Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Utility function
+        function showResult(section, message, type = 'success') {
+            let resultDiv;
+            if (section === 'auth') {
+                // Show auth results in the auth section
+                let authResultDiv = document.querySelector('.auth-section .result');
+                if (!authResultDiv) {
+                    authResultDiv = document.createElement('div');
+                    authResultDiv.className = 'result';
+                    document.querySelector('.auth-section').appendChild(authResultDiv);
+                }
+                resultDiv = authResultDiv;
+            } else {
+                resultDiv = document.getElementById(section + 'Result');
+            }
+            
+            if (resultDiv) {
+                resultDiv.textContent = message;
+                resultDiv.className = `result ${type}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+        
+        // Initialize
+        if (authToken) {
+            showResult('auth', 'Already logged in (token found in localStorage)', 'success');
+        }
+    </script>
+</body>
+</html>
